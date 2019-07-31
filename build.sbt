@@ -1,8 +1,5 @@
 import sbt.Keys._
-import sbt.ScriptedPlugin._
 import sbt._
-import sbtassembly.Plugin.AssemblyKeys._
-import sbtassembly.Plugin.{AssemblyKeys, MergeStrategy, assemblySettings}
 
 
 val buildName = "jardiff"
@@ -19,12 +16,6 @@ val commonSettings = Defaults.coreDefaultSettings ++ Seq (
     licenses := Seq("Apache License v2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     homepage := Some(url("http://github.com/scala/jardiff")),
     scalacOptions := Seq("-feature", "-deprecation", "-Xlint")
-)
-
-def sbtPublishSettings: Seq[Def.Setting[_]] = Seq(
-  bintrayOrganization := Some("typesafe"),
-  bintrayRepository := "sbt-plugins",
-  bintrayReleaseOnPublish := false
 )
 
 def sonatypePublishSettings: Seq[Def.Setting[_]] = Seq(
@@ -56,17 +47,18 @@ def sonatypePublishSettings: Seq[Def.Setting[_]] = Seq(
 
 lazy val root = (
   project.in(file("."))
-  aggregate(core, sbtplugin)
-  settings(name := buildName,
-           publish := (),
-           publishLocal := ()
-           )
+  aggregate(core)
+  settings(
+    name := buildName,
+    publish := {},
+    publishLocal := {}
+  )
   enablePlugins(GitVersioning)
 )
 
 lazy val core = (
   project.
-  settings(commonSettings ++ buildInfoSettings)
+  settings(commonSettings)
   settings(libraryDependencies ++= Seq(
     "commons-cli" % "commons-cli" % "1.4",
     "org.scala-lang.modules" % "scala-asm" % "5.1.0-scala-2",
@@ -78,29 +70,12 @@ lazy val core = (
   ),
            name := buildName + "-core")
   settings(sonatypePublishSettings:_*)
-)
-
-val myAssemblySettings: Seq[Setting[_]] = (assemblySettings: Seq[Setting[_]]) ++ Seq(
-  mergeStrategy in assembly ~= (old => {
-    case "LICENSE" => MergeStrategy.first
-    case x         => old(x)
-  }),
-  AssemblyKeys.excludedFiles in assembly ~= (old =>
-    // Hack to keep LICENSE files.
-    { files: Seq[File] => old(files) filterNot (_.getName contains "LICENSE") }
+  settings(
+    assemblyMergeStrategy in assembly := {
+      case "LICENSE" => MergeStrategy.first
+      case x =>
+        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        oldStrategy(x)
+    }
   )
-)
-
-lazy val sbtplugin = (
-  Project("sbtplugin", file("sbtplugin"), settings = commonSettings)
-  settings(scriptedSettings)
-  settings(name := "sbt-jardiff-plugin",
-           sbtPlugin := true,
-           scriptedLaunchOpts := scriptedLaunchOpts.value :+ "-Dplugin.version=" + version.value,
-           scriptedBufferLog := false,
-           // Scripted locally publishes sbt plugin and then runs test projects with locally published version.
-           // Therefore we also need to locally publish dependent projects on scripted test run.
-           scripted := (scripted dependsOn (publishLocal in core)).evaluated)
-  dependsOn(core)
-  settings(sbtPublishSettings:_*)
 )
