@@ -81,7 +81,10 @@ final class JarDiff(files: List[Path], config: JarDiff.Config, renderers: Map[St
 
 object JarDiff {
   def apply(files: List[Path], config: JarDiff.Config) = {
-    val renderers = Map("class" -> List(new AsmTextifyRenderer(config.code), new ScalapRenderer())).withDefault(_ => List(IdentityRenderer))
+    val renderers = Map(
+      "class" -> List(new AsmTextifyRenderer(config.code), new ScalapRenderer()),
+      "sig" -> List(new ScalapSigRenderer())
+    ).withDefault(_ => List(IdentityRenderer))
     new JarDiff(files, config, renderers)
   }
 
